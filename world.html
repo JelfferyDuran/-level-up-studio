@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0b1020"><title>LEVEL UP — Ascension World (Preview)</title>
 <style>
-*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:#0a1020;color:#f7f6f1;font-family:system-ui,-apple-system,sans-serif}canvas{display:block;touch-action:none}.hud{position:fixed;z-index:2;pointer-events:none}.hud>*{pointer-events:auto}.top{top:env(safe-area-inset-top,0px);left:0;right:0;padding:18px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px}.panel{background:#101a2adf;border:1px solid #b59a6070;border-radius:18px;backdrop-filter:blur(15px);box-shadow:0 12px 45px #0007;padding:13px 16px}.eyebrow{color:#f1ce7a;letter-spacing:2px;font-size:10px;font-weight:800}.title{font-weight:900;font-size:20px}.meta{color:#aebad0;font-size:12px;margin-top:5px}.bottom{bottom:calc(18px + env(safe-area-inset-bottom,0px));left:16px;right:16px;display:flex;justify-content:space-between;align-items:end;gap:12px}.hint{font-size:12px;color:#e7d9ba;line-height:1.6;max-width:240px}.btn{border:1px solid #d2af6c;background:#272c39;color:#ffe1a1;padding:12px 14px;border-radius:12px;font-weight:800;text-decoration:none;font-size:13px}.controls{display:flex;gap:8px}.controls button{font-size:19px;width:44px;height:44px}.toast{position:fixed;z-index:4;left:50%;bottom:110px;transform:translateX(-50%);max-width:85%;text-align:center;background:#131d30ed;border:1px solid #e8c478;border-radius:15px;padding:14px;display:none}@media(max-width:550px){.top{padding:10px}.panel{padding:11px}.title{font-size:16px}.hint{max-width:155px;font-size:11px}.bottom{left:10px;right:10px}}@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;background:#0a1020;color:#f7f6f1;font-family:system-ui,-apple-system,sans-serif}canvas{display:block;touch-action:none}.hud{position:fixed;z-index:2;pointer-events:none}.hud>*{pointer-events:auto}.top{top:env(safe-area-inset-top,0px);left:0;right:0;padding:18px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px}.panel{background:#101a2adf;border:1px solid #b59a6070;border-radius:18px;backdrop-filter:blur(15px);box-shadow:0 12px 45px #0007;padding:13px 16px}.eyebrow{color:#f1ce7a;letter-spacing:2px;font-size:10px;font-weight:800}.title{font-weight:900;font-size:20px}.meta{color:#aebad0;font-size:12px;margin-top:5px}.bottom{bottom:calc(18px + env(safe-area-inset-bottom,0px));left:16px;right:16px;display:flex;justify-content:space-between;align-items:end;gap:12px}.hint{font-size:12px;color:#e7d9ba;line-height:1.6;max-width:240px}.btn{border:1px solid #d2af6c;background:#272c39;color:#ffe1a1;padding:12px 14px;border-radius:12px;font-weight:800;text-decoration:none;font-size:13px}.controls{display:flex;gap:8px}.controls button{font-size:19px;width:44px;height:44px}.toast{position:fixed;z-index:4;left:50%;bottom:110px;transform:translateX(-50%);max-width:85%;text-align:center;background:#131d30ed;border:1px solid #e8c478;border-radius:15px;padding:14px;display:none}.fallback{position:fixed;inset:0;display:none;place-items:center;padding:26px;text-align:center;background:radial-gradient(circle at center,#273858,#0b1020)}.fallback .panel{max-width:400px}@media(max-width:550px){.top{padding:10px}.panel{padding:11px}.title{font-size:16px}.hint{max-width:155px;font-size:11px}.bottom{left:10px;right:10px}}@media(prefers-reduced-motion:reduce){*{transition:none!important}}
 .drawer{position:fixed;z-index:5;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));max-width:500px;margin:auto;padding:22px;background:linear-gradient(145deg,#293951,#101827);border:1px solid #dbbd7a;border-radius:23px;box-shadow:0 10px 60px #000c;transform:translateY(150%);transition:transform .25s}.drawer.open{transform:translateY(0)}.drawer p{color:#c6cfdf}.drawer button{float:right;background:#26344b;color:white;border:1px solid #65728b;border-radius:9px;padding:8px}.entry{padding:9px;border-bottom:1px solid #45536c;color:#f2ddb0;font-size:13px}.drawer a{display:inline-block;margin-top:15px}@media(prefers-reduced-motion:reduce){.drawer{transition:none}}.drawer{max-height:min(76dvh,640px);overflow:auto;overscroll-behavior:contain;padding:23px}.drawer h2{margin:7px 0 5px;font-size:25px}.drawer .subtitle{font-size:13px;line-height:1.5;color:#d4dce9}.drawer .statsline{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0}.drawer .metric{background:#101c2e;border:1px solid #415474;border-radius:12px;padding:11px}.metric b{font-size:19px;display:block;color:#f5d58d}.metric small{font-size:11px;color:#b6c5d9}.drawer .progressTrack{height:8px;background:#3a4961;border-radius:10px;overflow:hidden;margin:8px 0 15px}.drawer .progressFill{height:100%;background:linear-gradient(90deg,#5ddcc6,#f5d58d)}.drawer .sectionTitle{font-size:12px;letter-spacing:1.4px;color:#f2d28a;font-weight:850;margin:16px 0 6px}.drawer .entry{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 9px;border:1px solid #3c506b;border-radius:12px;margin:7px 0;background:#142237}.entry .left{min-width:0;flex:1}.entry .left b{display:block;color:#f5f5fa;font-size:13px}.entry .left small{display:block;color:#9eb1c9;margin-top:3px;font-size:11px}.entry .right{color:#f1d18c;white-space:nowrap;font-weight:800;font-size:12px}.drawer .hintText{font-size:11px;color:#a8b8d0;line-height:1.5}.drawer .btn{width:100%;text-align:center;padding:13px}.portalGuide{position:fixed;z-index:3;top:110px;left:12px;display:flex;flex-direction:column;gap:7px;max-width:185px}.portalGuide button{display:flex;align-items:center;gap:8px;border:1px solid #5c7392;background:#102037db;color:#e8edf7;border-radius:12px;padding:9px;text-align:left;font-weight:750;font-size:11px;backdrop-filter:blur(9px)}.portalGuide button span{font-size:19px}.portalGuide button small{display:block;color:#b6c3d5;font-weight:500;margin-top:3px}.drawer button#close{position:sticky;top:0;z-index:2}@media(max-width:550px){.portalGuide{top:104px;left:8px;max-width:142px}.portalGuide button{font-size:10px;padding:7px}.portalGuide button span{font-size:16px}.drawer{padding:17px}}@media(max-height:650px){.portalGuide{top:85px}.portalGuide button{padding:5px}} .room{position:fixed;z-index:8;inset:0;background:linear-gradient(160deg,#0b1223f2,#1a2742f5);display:none;overflow:auto;padding:calc(env(safe-area-inset-top) + 18px) 15px calc(env(safe-area-inset-bottom) + 24px);backdrop-filter:blur(18px)}.room.active{display:block}.roomInner{max-width:620px;margin:auto}.roomTop{display:flex;align-items:center;justify-content:space-between;gap:10px}.roomTitle{font-size:clamp(26px,7vw,42px);font-weight:900;margin:18px 0 6px}.roomLead{color:#b9c8df;line-height:1.55;margin:0 0 18px}.roomArt{height:150px;border:1px solid #a78d59;border-radius:24px;background:radial-gradient(ellipse at 50% 110%,#997144aa,transparent 55%),radial-gradient(ellipse at 55% 20%,#394c72,#111a2c 80%);display:grid;place-items:center;position:relative;overflow:hidden}.roomArt .sigil{font-size:74px;filter:drop-shadow(0 0 26px #e8c27799)}.roomArt:before,.roomArt:after{content:'';position:absolute;border:1px solid #d5b87960;border-radius:50%;width:210px;height:90px;transform:rotate(-25deg)}.roomArt:after{transform:rotate(25deg);width:170px;height:130px}.roomGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:14px 0}.roomTile{background:#172640;border:1px solid #3e5776;border-radius:17px;padding:14px}.roomTile strong{font-size:25px;display:block;color:#f4d58e}.roomTile small{color:#b2c3da}.roomCard{background:#15243a;border:1px solid #3e5776;border-radius:17px;padding:15px;margin:11px 0}.roomCard h3{margin:0 0 9px;font-size:16px}.roomCard p{color:#bac8d9;font-size:13px;line-height:1.55}.roomButton{background:linear-gradient(120deg,#f6d88c,#d4a75d);color:#1b2435;border:0;border-radius:13px;padding:13px 17px;font-weight:900;cursor:pointer}.roomButton:disabled{opacity:.5;cursor:default}.roomButton.secondary{background:#233650;color:#f2d28b;border:1px solid #bba16e}.roomQuest{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid #374b65;padding:11px 0}.roomQuest b{display:block;font-size:14px}.roomQuest small{color:#b6c4d5}.roomClock{font-size:clamp(60px,17vw,90px);font-variant-numeric:tabular-nums;text-align:center;font-weight:900;letter-spacing:-4px;color:#f8df9f;margin:16px 0}.roomControls{display:flex;gap:9px;justify-content:center;flex-wrap:wrap}.roomNotice{color:#b3c4d8;font-size:12px;line-height:1.5;margin-top:14px}.roomMeter{height:8px;border-radius:8px;background:#33455c;overflow:hidden;margin-top:12px}.roomMeter div{height:100%;background:#e7bf77;width:0}.room button:focus-visible{outline:3px solid #91f0e6;outline-offset:3px}@media(prefers-reduced-motion:reduce){.room{scroll-behavior:auto}}</style></head><body>
 <div class="hud top"><div class="panel"><div class="eyebrow">ASCENSION WORLD • V2</div><div class="title">⚡ ASCENSION WORLD</div><div class="meta" id="status">Preparing your world…</div></div><a class="btn" href="/">← Dashboard</a></div>
 <div class="hud bottom"><div class="panel hint" id="orbitHint">Drag to orbit • Pinch to zoom<br>Tap a portal to explore your quests, focus and achievements.<br><strong>Your saved quests stay unchanged.</strong></div><div class="controls" id="orbitControls"><button class="btn" id="left" aria-label="Rotate left">↶</button><button class="btn" id="right" aria-label="Rotate right">↷</button><button class="btn" id="reset" aria-label="Reset view">⌖</button></div></div>
@@ -15,9 +15,22 @@
 (function () {
   'use strict';
   var KEY = 'level-up-studio-pwa-v1';
-  var data = { xp: 0, stars: 0, done: [], completed: 0, best: 0, minutes: 25, history: {}, quests: [['sleep', '😴', 'Sleep 7h+', 50], ['sprint', '🎯', 'Focus Sprint', 50], ['mit', '✅', 'MIT done', 40], ['break', '🌿', 'Real break', 30], ['park', '📵', 'Phone parked', 30], ['god', '🙏', 'Time Alone with God', 50]].map(function (q) { return { id: q[0], emoji: q[1], name: q[2], xp: q[3] }; }) };
+  var data = { xp: 0, stars: 0, done: [], completed: 0, best: 0, minutes: 25, stepDone: {}, history: {}, quests: [['sleep', '😴', 'Sleep 7h+', 50], ['sprint', '🎯', 'Focus Sprint', 50], ['mit', '✅', 'MIT done', 40], ['break', '🌿', 'Real break', 30], ['park', '📵', 'Phone parked', 30], ['god', '🙏', 'Time Alone with God', 50], ['read', '📚', 'Read 20 minutes', 30], ['move', '🏃', 'Move 20 minutes', 40], ['tidy', '🧹', 'Tidy 10 minutes', 20], ['plan', '📝', 'Plan tomorrow', 20]].map(function (q) { return { id: q[0], emoji: q[1], name: q[2], xp: q[3] }; }) };
   try { var v = JSON.parse(localStorage.getItem(KEY) || 'null'); if (v && typeof v === 'object') data = Object.assign(data, v); } catch (e) {}
   if (Array.isArray(data.quests) && !data.quests.some(function (q) { return q.id === 'god'; })) data.quests.push({ id: 'god', emoji: '🙏', name: 'Time Alone with God', xp: 50 });
+  // Migration: existing players gain the new quests without losing progress.
+  // Runs at load AND on every refresh, because refresh reloads stored state.
+  function migrateQuests() {
+    if (!Array.isArray(data.quests)) data.quests = [];
+    var extra = { read: ['📚', 'Read 20 minutes', 30], move: ['🏃', 'Move 20 minutes', 40], tidy: ['🧹', 'Tidy 10 minutes', 20], plan: ['📝', 'Plan tomorrow', 20] };
+    var changed = false;
+    Object.keys(extra).forEach(function (id) {
+      if (!data.quests.some(function (q) { return q.id === id; })) { data.quests.push({ id: id, emoji: extra[id][0], name: extra[id][1], xp: extra[id][2] }); changed = true; }
+    });
+    return changed;
+  }
+  migrateQuests();
+  if (!data.stepDone || typeof data.stepDone !== 'object') data.stepDone = {};
 
   var QUEST_WISDOM = {
     sleep: ['Recover your strength', 'Protect a consistent sleep window. Rest supports learning, attention and emotional regulation.', 'Psalm 4:8', 'I will both lay me down in peace, and sleep.'],
@@ -25,9 +38,34 @@
     mit: ['Do what matters first', 'Identify your most important task, break it into a first step, and finish it before low-value distractions.', 'Proverbs 16:3', 'Commit thy works unto the LORD, and thy thoughts shall be established.'],
     break: ['Renew your mind and body', 'Take a real screen-free break. Walk, breathe, stretch, or enjoy quiet before returning with intention.', 'Mark 6:31', 'Come ye yourselves apart into a desert place, and rest a while.'],
     park: ['Practice self-control', 'Put your phone away during family time or focused work. Train your attention instead of surrendering it to notifications.', '2 Timothy 1:7', 'For God hath not given us the spirit of fear; but of power, and of love, and of a sound mind.'],
-    god: ['Be still and seek God', 'Set aside 10–15 minutes for prayer, reading Scripture, reflection and listening. Begin with gratitude, read a passage, then choose one action of obedience.', 'Psalm 46:10', 'Be still, and know that I am God.']
+    god: ['Be still and seek God', 'Set aside 10–15 minutes for prayer, reading Scripture, reflection and listening. Begin with gratitude, read a passage, then choose one action of obedience.', 'Psalm 46:10', 'Be still, and know that I am God.'],
+    read: ['Feed your mind', 'Twenty minutes of reading compounds into wisdom. Pick a book, read without skimming, and note one takeaway.', 'Proverbs 18:15', 'The heart of the prudent getteth knowledge.'],
+    move: ['Strengthen your body', 'Walk, run, or train for twenty minutes. Your body carries every mission you will ever do.', '1 Corinthians 6:19', 'Your body is the temple of the Holy Ghost.'],
+    tidy: ['Order your space', 'Ten focused minutes: pick one room, set a timer, and put everything back where it belongs.', '1 Corinthians 14:40', 'Let all things be done decently and in order.'],
+    plan: ['Prepare for tomorrow', 'Review tomorrow, write down your one most important task, and lay out its first step tonight.', 'Proverbs 21:5', 'The thoughts of the diligent tend only to plenteousness.']
   };
   function wisdomFor(q) { return QUEST_WISDOM[q.id] || ['Build your character', 'Choose a clear action, complete it with intention, and reflect on what you learned.', 'Galatians 6:9', 'And let us not be weary in well doing.']; }
+
+  // Subtasks: small checklist steps inside each quest. Steps are helpers —
+  // they never award XP by themselves; the quest button still does that.
+  var QUEST_STEPS = {
+    sleep: ['Set a bedtime alarm', 'No screens 30 min before bed', 'Room dark and cool'],
+    sprint: ['Pick one priority', 'Silence phone and tabs', 'Run the full timer'],
+    mit: ['Name your most important task', 'Break it into a first step', 'Finish before distractions'],
+    break: ['Step away from screens', 'Walk, stretch, or breathe', 'Return with intention'],
+    park: ['Phone in another room', 'Set a return time', 'Be present with family'],
+    god: ['Begin with gratitude', 'Read one passage', 'Choose one act of obedience'],
+    read: ['Pick your book', 'Read 20 minutes', 'Note one takeaway'],
+    move: ['Pick a walk or workout', 'Move 20 minutes', 'Stretch and drink water'],
+    tidy: ['Pick one room', 'Set a 10-minute timer', 'Put everything back'],
+    plan: ['Review tomorrow', 'Write tomorrow’s MIT', 'Lay out the first step']
+  };
+  function stepState(q) { if (!data.stepDone[q.id]) data.stepDone[q.id] = []; return data.stepDone[q.id]; }
+  function toggleStep(q, i) {
+    var st = stepState(q), at = st.indexOf(i);
+    if (at >= 0) st.splice(at, 1); else st.push(i);
+    persistData();
+  }
 
   // ---- 3D / 2D mode -------------------------------------------------------
   var threeReady = false, twoD = false;
@@ -78,10 +116,14 @@
       var raw = localStorage.getItem(KEY);
       if (raw) { var latest = JSON.parse(raw); if (latest && Array.isArray(latest.quests) && Array.isArray(latest.done)) data = latest; }
     } catch (e) {}
+    // Stored states predate subtasks: re-apply defaults the stored object lacks.
+    if (!Array.isArray(data.quests)) data.quests = [];
+    if (!data.stepDone || typeof data.stepDone !== 'object') data.stepDone = {};
+    if (migrateQuests()) persistData();
     if (data.date !== todayKey()) {
       var previous = data.date;
       if (previous && Array.isArray(data.done) && data.done.length) { data.history = data.history || {}; data.history[previous] = data.done.length; }
-      data.done = []; data.date = todayKey(); focusCompleted = false; persistData();
+      data.done = []; data.stepDone = {}; data.date = todayKey(); focusCompleted = false; persistData();
     }
   }
   function calculateStreak() {
@@ -170,6 +212,26 @@
         var w = wisdomFor(q);
         info.append(element('b', '', (q.emoji || '⭐') + ' ' + q.name), element('small', '', done.includes(q.id) ? 'Completed today' : '+' + q.xp + ' XP'), element('small', '', w[0] + ' — ' + w[1]), element('small', '', w[2] + ' · “' + w[3] + '”'));
         info.style.cssText = 'display:grid;gap:5px;flex:1;min-width:0';
+        var steps = QUEST_STEPS[q.id];
+        if (steps) {
+          var st = stepState(q);
+          steps.forEach(function (label, si) {
+            var srow = element('div', '');
+            srow.style.cssText = 'display:flex;gap:8px;align-items:center';
+            var cb = element('button', '', st.includes(si) ? '☑' : '☐');
+            cb.type = 'button';
+            cb.style.cssText = 'border:0;background:transparent;color:#f1d18c;font-size:17px;padding:0;cursor:pointer';
+            cb.setAttribute('aria-label', (st.includes(si) ? 'Undo step: ' : 'Complete step: ') + label);
+            cb.onclick = function () { toggleStep(q, si); renderQuests(); };
+            var t = element('small', '', label);
+            if (st.includes(si)) { t.style.textDecoration = 'line-through'; t.style.opacity = '.6'; }
+            srow.append(cb, t);
+            info.append(srow);
+          });
+          var prog = element('small', '', st.length + '/' + steps.length + ' steps');
+          prog.style.color = '#f1d18c';
+          info.append(prog);
+        }
         var btn = roomButton(done.includes(q.id) ? '✓ Done' : 'Complete', function () {
           if (q.id === 'sprint' && !data.done.includes(q.id)) { roomStart('focus'); return; }
           if (saveQuest(q.id)) renderQuests();
