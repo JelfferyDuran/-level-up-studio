@@ -1,0 +1,12 @@
+{
+  "name": "level-up-studio",
+  "private": true,
+  "description": "Regression harness for LEVEL UP STUDIO / Ascension World. The app itself has no build step and no runtime dependencies.",
+  "scripts": {
+    "test": "playwright test",
+    "test:report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}

@@ -1,0 +1,10 @@
+# Keep the deployed site identical to the pre-harness static app:
+# Vercel never sees the test tooling, so it does not run npm install or serve test files.
+node_modules
+tests
+package.json
+package-lock.json
+playwright.config.mjs
+test-results
+playwright-report
+.github
