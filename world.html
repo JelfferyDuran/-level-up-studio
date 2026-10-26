@@ -10,7 +10,7 @@
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
 const KEY='level-up-studio-pwa-v1';
-let data={xp:0,done:[],quests:[]};try{const v=JSON.parse(localStorage.getItem(KEY)||'null');if(v&&typeof v==='object')data={...data,...v}}catch{}
+let data={xp:0,stars:0,done:[],completed:0,best:0,minutes:25,history:{},quests:[['sleep','😴','Sleep 7h+',50],['sprint','🎯','Focus Sprint',50],['mit','✅','MIT done',40],['break','🌿','Real break',30],['park','📵','Phone parked',30]].map(([id,emoji,name,xp])=>({id,emoji,name,xp}))};try{const v=JSON.parse(localStorage.getItem(KEY)||'null');if(v&&typeof v==='object')data={...data,...v}}catch{}
 const xp=Math.max(0,Number(data.xp)||0),lvl=Math.floor(xp/200)+1,completed=Array.isArray(data.done)?data.done.length:0;
 document.getElementById('status').textContent='LEVEL '+lvl+'  •  '+xp+' XP  •  '+completed+' quests today';
 const drawer=document.getElementById('drawer');document.getElementById('close').onclick=()=>drawer.classList.remove('open');
