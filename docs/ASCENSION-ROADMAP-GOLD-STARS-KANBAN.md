@@ -17,6 +17,9 @@ Gold stars measure healthy consistency and reflection, not raw clicks.
 - Privacy: local-only by default, optional cloud sync later; reflection text never transmitted without opt-in. No analytics on sensitive faith content.
 - Unit tests: idempotency, midnight rollover, undo, duplicate prevention, backup/restore, timezone change, partial data and storage errors.
 
+## Confirmed product direction: private growth + community growth
+**Both**, staged. Phase 1: private-by-default personal transformation, onboarding, personalized quests, local progress, Gold Stars and reflections. Phase 2: optional community accountability circles, cooperative quests, consent-based challenges and carefully scoped leaderboards. Each user controls what is shared; reflections, religious preferences, and private activity are never public by default. No public profile, automatic discovery, or child social features by default. Design account security, moderation/reporting, consent revocation, abuse prevention and data deletion before community launch. Community features are not implemented by this planning commit.
+
 ## Product pillars
 1. **Initiation:** 4-step skippable intake (name/alias, goals, daily commitment, motivation preference); never overwrite existing XP/quests. Provide edit/restart without reset.
 2. **Adaptive quests:** small personalized quest packs with three optional subtasks and an explanation of why each matters. Focus session gated by timer, not manual checkboxes.
@@ -40,7 +43,7 @@ P0: QA and preservation (baseline smoke tests, storage migration tests, backup s
 P1: onboarding + personalized quest selection; gold-star engine and UI.
 P1: accessible learning cards, reflection, verse preferences and secular alternative.
 P1: progress measurement and privacy controls (local metrics first).
-P2: cloud accounts/sync, richer world upgrades, agent-driven content library, social sharing with privacy defaults.
+P2: opt-in accounts/sync, private accountability circles, cooperative community quests, consent-based sharing, moderation/privacy controls, richer world upgrades. Do not launch community before secure account isolation and consent controls.
 
 ## Agent contract
 - Read this document, current app source, PRs and docs before coding.
