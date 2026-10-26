@@ -57,7 +57,7 @@ function openPortal(p){
  }
  drawer.classList.add('open');
 }
-document.querySelectorAll('[data-open]').forEach(btn=>btn.addEventListener('click',()=>{const type=btn.dataset.open;const node={name:type==='focus'?'FOCUS CHAMBER':type==='quests'?'QUEST GARDENS':'ACHIEVEMENT VAULT'};openPortal(node)}));
+document.querySelectorAll('[data-open]').forEach(btn=>btn.addEventListener('click',()=>{const type=btn.dataset.open;const node={name:type==='focus'?'FOCUS CHAMBER':type==='quests'?'QUEST GARDENS':'ACHIEVEMENT VAULT'};roomStart(type)}));
 // Hybrid rooms share the classic dashboard schema. No migrations or server writes.
 const room=document.getElementById('room'),roomContent=document.getElementById('roomContent');
 const todayKey=(d=new Date())=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -126,7 +126,7 @@ function onResize(){camera.aspect=innerWidth/innerHeight;camera.updateProjection
 let down=null,moved=false,lastPinch=0;const c=renderer.domElement;
 c.addEventListener('pointerdown',e=>{down={x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY};moved=false;try{c.setPointerCapture(e.pointerId)}catch{}});
 c.addEventListener('pointermove',e=>{if(!down)return;const dx=e.clientX-down.x,dy=e.clientY-down.y;if(Math.hypot(e.clientX-down.startX,e.clientY-down.startY)>12)moved=true;az-=dx*.006;polar=Math.max(.35,Math.min(1.43,polar+dy*.004));down={...down,x:e.clientX,y:e.clientY};updateCamera()});
-c.addEventListener('pointerup',e=>{if(!moved){pointer.set(e.clientX/innerWidth*2-1,-e.clientY/innerHeight*2+1);raycaster.setFromCamera(pointer,camera);const hit=raycaster.intersectObjects(portals)[0];if(hit?.object.userData.portal){const p=hit.object.userData.portal;openPortal(p)}else{message('Select a glowing portal or use the destination buttons on the left.')}}down=null});
+c.addEventListener('pointerup',e=>{if(!moved){pointer.set(e.clientX/innerWidth*2-1,-e.clientY/innerHeight*2+1);raycaster.setFromCamera(pointer,camera);const hit=raycaster.intersectObjects(portals)[0];if(hit?.object.userData.portal){const p=hit.object.userData.portal;roomStart(p.name.includes('FOCUS')?'focus':p.name.includes('QUEST')?'quests':'vault')}else{message('Select a glowing portal or use the destination buttons on the left.')}}down=null});
 c.addEventListener('wheel',e=>{dist=Math.max(14,Math.min(48,dist+e.deltaY*.018));updateCamera()},{passive:true});
 c.addEventListener('touchmove',e=>{if(e.touches.length===2){const a=e.touches[0],b=e.touches[1],p=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);if(lastPinch)dist=Math.max(14,Math.min(48,dist+(lastPinch-p)*.06));lastPinch=p;updateCamera()}},{passive:true});c.addEventListener('touchend',()=>lastPinch=0);
 document.getElementById('left').onclick=()=>{az-=.35;updateCamera()};document.getElementById('right').onclick=()=>{az+=.35;updateCamera()};document.getElementById('reset').onclick=()=>{az=.5;polar=.85;dist=29;target.set(0,1.2,0);updateCamera()};
