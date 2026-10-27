@@ -7,6 +7,7 @@
 <div class="hud bottom"><div class="panel hint" id="orbitHint">Drag to orbit • Pinch to zoom<br>Tap a portal to explore your quests, focus and achievements.<br><strong>Your saved quests stay unchanged.</strong></div><div class="controls" id="orbitControls"><button class="btn" id="left" aria-label="Rotate left">↶</button><button class="btn" id="right" aria-label="Rotate right">↷</button><button class="btn" id="reset" aria-label="Reset view">⌖</button></div></div>
 <aside class="portalGuide" aria-label="Island destinations"><button data-open="focus"><span>🎯</span><div>FOCUS<small>Deep work sessions</small></div></button><button data-open="quests"><span>🌿</span><div>QUESTS<small>Daily missions</small></div></button><button data-open="vault"><span>🏆</span><div>VAULT<small>Rewards & milestones</small></div></button></aside><div class="toast" id="toast"></div><section class="drawer" id="drawer"><button id="close">✕</button><div class="eyebrow">ISLAND DESTINATION</div><h2 id="destination"></h2><p id="description"></p><div id="entries"></div><a class="btn" id="action" href="/">Open Dashboard →</a></section>
 <section class="room" id="room" role="dialog" aria-modal="true" aria-labelledby="roomTitle"><div class="roomInner"><div class="roomTop"><div class="eyebrow">ASCENSION • IMMERSIVE ROOM</div><button class="roomButton secondary" id="leaveRoom">← Return to Island</button></div><div class="roomArt"><span class="sigil" id="roomSigil">✦</span></div><h1 class="roomTitle" id="roomTitle"></h1><p class="roomLead" id="roomLead"></p><div id="roomContent"></div><p class="roomNotice" id="roomNotice">Your progress stays on this device. Changes are saved only when you complete or undo a quest.</p></div></section>
+<script src="/storage.js"></script>
 <script>
 // Plain script — ALL interactive logic for Ascension World.
 // Runs with zero dependencies: if Three.js or WebGL fails, every button,
@@ -15,12 +16,29 @@
 (function () {
   'use strict';
   var KEY = 'level-up-studio-pwa-v1';
-  var data = { xp: 0, stars: 0, done: [], completed: 0, best: 0, minutes: 25, stepDone: {}, history: {}, quests: [['sleep', '😴', 'Sleep 7h+', 50], ['sprint', '🎯', 'Focus Sprint', 50], ['mit', '✅', 'MIT done', 40], ['break', '🌿', 'Real break', 30], ['park', '📵', 'Phone parked', 30], ['god', '🙏', 'Time Alone with God', 50], ['read', '📚', 'Read 20 minutes', 30], ['move', '🏃', 'Move 20 minutes', 40], ['tidy', '🧹', 'Tidy 10 minutes', 20], ['plan', '📝', 'Plan tomorrow', 20]].map(function (q) { return { id: q[0], emoji: q[1], name: q[2], xp: q[3] }; }) };
-  try { var v = JSON.parse(localStorage.getItem(KEY) || 'null'); if (v && typeof v === 'object') data = Object.assign(data, v); } catch (e) {}
-  if (Array.isArray(data.quests) && !data.quests.some(function (q) { return q.id === 'god'; })) data.quests.push({ id: 'god', emoji: '🙏', name: 'Time Alone with God', xp: 50 });
+  // P0 storage hardening: window.StudioStorage (storage.js) owns load/save/
+  // merge/repair/migration. Legacy paths below run only if it failed to load.
+  var Store = window.StudioStorage;
+  var dataRev = 0, dataRecovered = false;
+  var legacyDefaults = { xp: 0, stars: 0, done: [], completed: 0, best: 0, minutes: 25, stepDone: {}, history: {}, quests: [['sleep', '😴', 'Sleep 7h+', 50], ['sprint', '🎯', 'Focus Sprint', 50], ['mit', '✅', 'MIT done', 40], ['break', '🌿', 'Real break', 30], ['park', '📵', 'Phone parked', 30], ['god', '🙏', 'Time Alone with God', 50], ['read', '📚', 'Read 20 minutes', 30], ['move', '🏃', 'Move 20 minutes', 40], ['tidy', '🧹', 'Tidy 10 minutes', 20], ['plan', '📝', 'Plan tomorrow', 20]].map(function (q) { return { id: q[0], emoji: q[1], name: q[2], xp: q[3] }; }) };
+  var data;
+  if (Store) {
+    var loaded = Store.load();
+    data = loaded.state; dataRev = loaded.rev;
+    dataRecovered = !!(loaded.recovered || loaded.quarantined);
+  } else {
+    data = legacyDefaults;
+    try { var v = JSON.parse(localStorage.getItem(KEY) || 'null'); if (v && typeof v === 'object') data = Object.assign(data, v); } catch (e) {}
+    if (Array.isArray(data.quests) && !data.quests.some(function (q) { return q.id === 'god'; })) data.quests.push({ id: 'god', emoji: '🙏', name: 'Time Alone with God', xp: 50 });
+    if (!data.stepDone || typeof data.stepDone !== 'object') data.stepDone = {};
+  }
   // Migration: existing players gain the new quests without losing progress.
   // Runs at load AND on every refresh, because refresh reloads stored state.
+  // With the module this covers ALL defaults (including god) every time —
+  // the old refresh path only added read/move/tidy/plan, which is how a
+  // legacy save opened first in World never persisted god.
   function migrateQuests() {
+    if (Store) return Store.migrate(data);
     if (!Array.isArray(data.quests)) data.quests = [];
     var extra = { read: ['📚', 'Read 20 minutes', 30], move: ['🏃', 'Move 20 minutes', 40], tidy: ['🧹', 'Tidy 10 minutes', 20], plan: ['📝', 'Plan tomorrow', 20] };
     var changed = false;
@@ -30,7 +48,6 @@
     return changed;
   }
   migrateQuests();
-  if (!data.stepDone || typeof data.stepDone !== 'object') data.stepDone = {};
 
   var QUEST_WISDOM = {
     sleep: ['Recover your strength', 'Protect a consistent sleep window. Rest supports learning, attention and emotional regulation.', 'Psalm 4:8', 'I will both lay me down in peace, and sleep.'],
@@ -110,8 +127,29 @@
 
   // ---- storage ---------------------------------------------------------------
   function todayKey(d) { d = d || new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
-  function persistData() { try { localStorage.setItem(KEY, JSON.stringify(data)); return true; } catch (e) { alert('Progress could not be saved. Your previous data was preserved.'); return false; } }
+  function persistData() {
+    if (Store) {
+      var r = Store.save(data, dataRev);
+      if (r.ok) { data = r.state; dataRev = r.rev; return true; }
+      var l = Store.load(); data = l.state; dataRev = l.rev;
+      alert('Progress could not be saved. Your previous data was preserved.');
+      return false;
+    }
+    try { localStorage.setItem(KEY, JSON.stringify(data)); return true; } catch (e) { alert('Progress could not be saved. Your previous data was preserved.'); return false; }
+  }
   function safeRefresh() {
+    if (Store) {
+      // Merge (never wholesale replace) + migrate + roll over, then persist
+      // only if something actually changed. Recovery is surfaced, not silent.
+      var r = Store.rehydrate(data, dataRev);
+      data = r.state; dataRev = r.rev;
+      if (r.changed) persistData();
+      if (r.recovered || r.quarantined || dataRecovered) {
+        message('Your save was restored from backup.', 6000);
+        dataRecovered = false;
+      }
+      return;
+    }
     try {
       var raw = localStorage.getItem(KEY);
       if (raw) { var latest = JSON.parse(raw); if (latest && Array.isArray(latest.quests) && Array.isArray(latest.done)) data = latest; }
@@ -308,15 +346,24 @@
   document.querySelectorAll('[data-open]').forEach(function (btn) {
     btn.addEventListener('click', function () { roomStart(btn.dataset.open); });
   });
+  function refreshRoom() {
+    if (room.classList.contains('active') && !focusRunning) {
+      if (roomType === 'quests') renderQuests();
+      else if (roomType === 'vault') renderVault();
+    }
+  }
   document.addEventListener('visibilitychange', function () {
     if (!document.hidden) {
       safeRefresh();
       if (focusRunning) focusTick();
-      if (room.classList.contains('active') && !focusRunning) {
-        if (roomType === 'quests') renderQuests();
-        else if (roomType === 'vault') renderVault();
-      }
+      refreshRoom();
     }
+  });
+  // bfcache restore re-runs no script: re-read storage explicitly.
+  window.addEventListener('pageshow', function () { safeRefresh(); renderStatus(); refreshRoom(); });
+  // Another tab wrote: merge it in and re-render instead of overwriting it.
+  window.addEventListener('storage', function (e) {
+    if (e.key === KEY) { safeRefresh(); renderStatus(); refreshRoom(); }
   });
   renderStatus();
 })();
@@ -330,7 +377,8 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.m
 
 const KEY = 'level-up-studio-pwa-v1';
 let saved = { xp: 0, completed: 0, minutes: 25 };
-try { const v = JSON.parse(localStorage.getItem(KEY) || 'null'); if (v && typeof v === 'object') saved = Object.assign(saved, v); } catch (e) {}
+if (window.StudioStorage) { try { const l = window.StudioStorage.load(); saved = Object.assign(saved, l.state); } catch (e) {} }
+else { try { const v = JSON.parse(localStorage.getItem(KEY) || 'null'); if (v && typeof v === 'object') saved = Object.assign(saved, v); } catch (e) {} }
 const xp = Math.max(0, Number(saved.xp) || 0), lvl = Math.floor(xp / 200) + 1;
 
 const scene = new THREE.Scene();
