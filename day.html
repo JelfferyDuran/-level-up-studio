@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>DAY CLOCK — Level Up Studio</title>
+<!--
+DAY CLOCK (Level Up Studio, v1)
+- One-tap activity stopwatch: single active timer; tapping another activity stops
+  the current one and starts the new one; tapping the active one stops it.
+- Timer persists across reload/backgrounding via a persisted start time. It is
+  deliberately NOT auto-paused when hidden: the phone is often in a pocket while
+  the owner is still working, so pausing on hide would undercount real work.
+  One-tap stop + retroactive log cover mistakes instead.
+- Storage key: level-up-studio-day-v1. NEVER touches level-up-studio-pwa-v1.
+  All data stays on this device unless the owner exports it.
+- Screen time is a MANUAL daily entry: web apps cannot read iOS Screen Time.
+  Enter minutes from Settings > Screen Time.
+- Sessions are attributed to their start day. A session still running past
+  midnight counts toward the day it started until it is stopped.
+-->
+<style>
+:root{color-scheme:dark;--bg:#0b1020;--panel:#18233b;--line:#33435d;--gold:#f0c86d;--muted:#9eabc4;--green:#69d9aa;--red:#ff8a80}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 10% 0%,#342947,transparent 45%),var(--bg);color:#f8f9ff;font-family:system-ui,-apple-system,sans-serif}
+.wrap{max-width:760px;margin:auto;padding:20px 16px 60px}
+a{color:var(--gold)}button,input,select{font:inherit}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px;border-radius:12px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.top a{text-decoration:none;font-weight:800}
+h1{font-size:15px;letter-spacing:2px;margin:0 0 2px}
+.date{color:var(--muted);font-size:14px;margin:0 0 16px}
+.hero{border:1px solid #506080;background:linear-gradient(125deg,#293854,#151d30);border-radius:26px;padding:22px;margin-bottom:15px}
+.hero .label{font-size:11px;letter-spacing:2px;font-weight:800;color:var(--gold)}
+.hero .now{font-size:clamp(30px,8vw,46px);font-weight:900;margin:8px 0 2px;font-variant-numeric:tabular-nums}
+.hero .sub{color:var(--muted);font-size:14px}
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:15px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:12px}
+.stat b{font-size:21px;display:block;font-variant-numeric:tabular-nums}
+.stat span{font-size:11px;letter-spacing:1px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px}
+.act{background:var(--panel);border:2px solid var(--line);color:#fff;border-radius:20px;padding:14px;cursor:pointer;text-align:left}
+.act:active{transform:scale(.97)}
+.act.active{border-color:var(--gold);background:#2c2608}
+.act .e{font-size:30px}
+.act b{display:block;font-size:16px;margin-top:4px}
+.act small{display:block;color:var(--muted);font-size:12px;margin-top:2px;font-variant-numeric:tabular-nums}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:16px;margin-bottom:15px}
+.panel h2{font-size:16px;margin:0 0 10px}
+.panel p{color:var(--muted);font-size:13px;line-height:1.5;margin:6px 0}
+.bar{display:flex;height:26px;border-radius:99px;overflow:hidden;background:#0b1020;border:1px solid var(--line);margin:8px 0}
+.bar .gap{background:repeating-linear-gradient(45deg,#1a2438 0 8px,#121a2c 8px 16px)}
+.bar div{height:100%}
+.sess{display:flex;justify-content:space-between;gap:8px;padding:9px 0;border-top:1px solid var(--line);font-size:14px}
+.sess:first-of-type{border-top:0}
+.sess .t{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.del{background:none;border:1px solid var(--line);color:var(--muted);border-radius:10px;padding:2px 10px;cursor:pointer}
+.btn{background:var(--gold);color:#12101d;border:none;border-radius:99px;padding:13px 26px;font-size:16px;font-weight:800;cursor:pointer}
+.btn.ghost{background:transparent;color:#fff;border:2px solid var(--line)}
+.btn.small{padding:9px 16px;font-size:14px}
+.btnrow{display:flex;gap:10px;flex-wrap:wrap}
+.field{margin:10px 0}
+.field label{display:block;font-size:13px;font-weight:700;margin-bottom:6px}
+.field input,.field select{width:100%;background:#0b1020;border:2px solid var(--line);color:#fff;border-radius:12px;padding:12px;font-size:16px}
+.field input[aria-invalid="true"]{border-color:#e74c3c}
+.err{color:var(--red);font-size:13px;min-height:17px;margin-top:4px}
+.overlay{position:fixed;inset:0;background:rgba(8,7,16,.94);display:none;align-items:center;justify-content:center;flex-direction:column;z-index:20;padding:24px;text-align:center}
+.overlay.show{display:flex}
+.overlay h2{font-size:28px;margin:8px 0}
+.overlay p{color:var(--muted);font-size:15px;margin:0 0 16px;max-width:340px}
+.weekrow{display:flex;gap:6px;margin:8px 0}
+.weekrow div{flex:1;text-align:center;background:#0b1020;border:1px solid var(--line);border-radius:12px;padding:8px 0 6px;font-size:11px;color:var(--muted)}
+.weekrow div b{display:block;font-size:14px;color:#fff;font-variant-numeric:tabular-nums}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a href="index.html">← Studio</a><span id="clockNow" aria-hidden="true"></span></div>
+  <h1>🕐 DAY CLOCK</h1>
+  <p class="date" id="dateLine"></p>
+  <p id="announce" class="sr-only" aria-live="polite"></p>
+
+  <div class="hero">
+    <div class="label" id="heroLabel">NOTHING TIMING</div>
+    <div class="now" id="heroTime" role="timer" aria-label="Active timer">—</div>
+    <div class="sub" id="heroSub">Tap an activity below to start.</div>
+    <div class="btnrow" style="margin-top:14px">
+      <button class="btn" id="stopBtn" hidden>⏹ Stop</button>
+      <button class="btn ghost small" id="logPastBtn">＋ Log past</button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><b id="statLogged">0h 00m</b><span>LOGGED TODAY</span></div>
+    <div class="stat"><b id="statUnlogged">0h 00m</b><span>UNLOGGED SO FAR</span></div>
+    <div class="stat"><b id="statLost">0h 00m</b><span>LOST TODAY *</span></div>
+  </div>
+
+  <div id="activities" class="grid" role="group" aria-label="Activities"></div>
+  <button class="btn ghost" id="addActBtn" style="width:100%;margin-bottom:15px">＋ Add activity</button>
+
+  <div class="panel">
+    <h2>Today's timeline</h2>
+    <div class="bar" id="dayBar" aria-hidden="true"></div>
+    <p>Gold gaps are unlogged time so far. Future hours aren't counted.</p>
+    <div id="sessList"></div>
+  </div>
+
+  <div class="panel">
+    <h2>This week</h2>
+    <div class="weekrow" id="weekRow"></div>
+    <div id="weekTotals"></div>
+  </div>
+
+  <div class="panel">
+    <h2>📱 Phone time today</h2>
+    <p>Web apps can't read iPhone Screen Time automatically. Enter it from Settings → Screen Time — one number, once a day.</p>
+    <div class="field"><label for="phoneMin">Phone minutes today</label><input id="phoneMin" type="number" min="0" max="1440" inputmode="numeric"></div>
+    <button class="btn small" id="phoneSave">Save</button>
+  </div>
+
+  <div class="panel">
+    <h2>Backup</h2>
+    <p>Your day data lives on this phone only. Export it to keep a copy.</p>
+    <div class="btnrow">
+      <button class="btn small ghost" id="exportBtn">⬇ Export</button>
+      <button class="btn small ghost" id="importBtn">⬆ Import</button>
+      <input type="file" id="importFile" accept=".json,application/json" hidden>
+    </div>
+    <p id="backupMsg" aria-live="polite"></p>
+  </div>
+
+  <p style="color:var(--muted);font-size:12px;line-height:1.6">* Lost today = unlogged time so far + phone minutes + sleep shortfall (last Sleep session under 7h). Sessions count toward the day they started. A session running past midnight keeps counting until stopped.</p>
+</div>
+
+<!-- Log past dialog -->
+<div class="overlay" id="pastOv" role="dialog" aria-modal="true" aria-labelledby="pastTitle" hidden>
+  <h2 id="pastTitle">Log past time</h2>
+  <p>For when you forgot to tap. It ends now.</p>
+  <div style="width:min(340px,100%);text-align:left">
+    <div class="field"><label for="pastAct">Activity</label><select id="pastAct"></select></div>
+    <div class="field"><label for="pastMin">Minutes ago it started</label><input id="pastMin" type="number" min="1" max="600" inputmode="numeric" placeholder="e.g. 30"></div>
+    <div class="err" id="pastErr" aria-live="polite"></div>
+  </div>
+  <div class="btnrow">
+    <button class="btn" id="pastQuick15">15 min ago</button>
+    <button class="btn" id="pastQuick30">30 min ago</button>
+    <button class="btn" id="pastQuick60">60 min ago</button>
+  </div>
+  <div class="btnrow" style="margin-top:10px">
+    <button class="btn" id="pastSave">Log it</button>
+    <button class="btn ghost" id="pastCancel">Cancel</button>
+  </div>
+</div>
+
+<!-- Add activity dialog -->
+<div class="overlay" id="addOv" role="dialog" aria-modal="true" aria-labelledby="addTitle" hidden>
+  <h2 id="addTitle">New activity</h2>
+  <p>Short name. One emoji.</p>
+  <div style="width:min(340px,100%);text-align:left">
+    <div class="field"><label for="addEmoji">Emoji</label><input id="addEmoji" type="text" maxlength="4" value="⏱️"></div>
+    <div class="field"><label for="addName">Name</label><input id="addName" type="text" maxlength="24" aria-describedby="addErr"></div>
+    <div class="err" id="addErr" aria-live="polite"></div>
+  </div>
+  <div class="btnrow">
+    <button class="btn" id="addSave">Save activity</button>
+    <button class="btn ghost" id="addCancel">Cancel</button>
+  </div>
+</div>
+
+<!-- Import confirm dialog -->
+<div class="overlay" id="impOv" role="dialog" aria-modal="true" aria-labelledby="impTitle" hidden>
+  <h2 id="impTitle">Replace day data?</h2>
+  <p>This overwrites everything on this phone with the backup file.</p>
+  <div class="btnrow">
+    <button class="btn" id="impYes">Yes, replace</button>
+    <button class="btn ghost" id="impNo">Keep mine</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+const KEY='level-up-studio-day-v1';
+const $=id=>document.getElementById(id);
+const COLORS=['#f0c86d','#69d9aa','#7aa7ff','#ff8a80','#c792ea','#ffcc80','#80deea','#a5d6a7','#ce93d8','#ffe082'];
+const DEFAULTS=[
+  {id:'wake',emoji:'🌅',name:'Wake & Kids'},
+  {id:'school',emoji:'🎒',name:'School run'},
+  {id:'store',emoji:'🏪',name:'Store'},
+  {id:'instacart',emoji:'🛒',name:'Instacart'},
+  {id:'doordash',emoji:'🛵',name:'DoorDash'},
+  {id:'pickup',emoji:'🏫',name:'Pickup'},
+  {id:'family',emoji:'❤️',name:'Family'},
+  {id:'ai',emoji:'🤖',name:'AI work'},
+  {id:'computer',emoji:'💻',name:'Computer'},
+  {id:'sleep',emoji:'😴',name:'Sleep'},
+];
+const pad=n=>String(n).padStart(2,'0');
+const dateStr=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const todayStr=()=>dateStr(new Date());
+const fmtDur=ms=>{const s=Math.max(0,Math.floor(ms/1000));return Math.floor(s/3600)+'h '+pad(Math.floor(s%3600/60))+'m';};
+const fmtClock=ms=>{const s=Math.max(0,Math.floor(ms/1000));return pad(Math.floor(s/3600))+':'+pad(Math.floor(s%3600/60))+':'+pad(s%60);};
+const fmtTime=t=>{const d=new Date(t);return pad(d.getHours())+':'+pad(d.getMinutes());};
+const median=a=>{if(!a.length)return null;const s=[...a].sort((x,y)=>x-y);return s.length%2?s[Math.floor(s.length/2)]:(s[s.length/2-1]+s[s.length/2])/2;};
+
+function blank(){return {sessions:[],active:null,phone:{},customs:[]};}
+function load(){
+  try{
+    const s=JSON.parse(localStorage.getItem(KEY));
+    if(s&&Array.isArray(s.sessions))return Object.assign(blank(),s,{phone:s.phone||{},customs:Array.isArray(s.customs)?s.customs:[]});
+  }catch(e){}
+  return blank();
+}
+let S=load();
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+function activities(){return DEFAULTS.concat(S.customs);}
+function actById(id){return activities().find(a=>a.id===id);}
+function colorOf(id){const i=activities().findIndex(a=>a.id===id);return COLORS[(i<0?0:i)%COLORS.length];}
+function announce(t){$('announce').textContent=t;}
+
+let lastTrigger=null;
+function openOverlay(el,trigger){
+  lastTrigger=trigger||document.activeElement;
+  el.hidden=false;el.classList.add('show');
+  const f=el.querySelector('button, input, select');if(f)f.focus();
+}
+function closeOverlay(el){
+  el.classList.remove('show');el.hidden=true;
+  if(lastTrigger&&lastTrigger.focus)lastTrigger.focus();
+}
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape')return;
+  const el=['pastOv','addOv','impOv'].map($).find(x=>x.classList.contains('show'));
+  if(el)closeOverlay(el);
+});
+
+function startActivity(id,btn){
+  const now=Date.now();
+  if(S.active&&S.active.id===id){stopActive();return;}
+  if(S.active){
+    S.sessions.push({a:S.active.id,start:S.active.start,end:now});
+  }
+  S.active={id:id,start:now};save();render();
+  announce('Timing '+actById(id).name+'.');
+}
+function stopActive(){
+  if(!S.active)return;
+  S.sessions.push({a:S.active.id,start:S.active.start,end:Date.now()});
+  const name=actById(S.active.id).name;S.active=null;save();render();
+  announce('Stopped '+name+'.');
+}
+function sessionsToday(){
+  const t=todayStr();
+  return S.sessions.filter(s=>dateStr(new Date(s.start))===t);
+}
+function usualMs(id){
+  const ds=S.sessions.filter(s=>s.a===id&&s.end).map(s=>s.end-s.start);
+  const m=median(ds);
+  return ds.length>=2?m:null;
+}
+function lastSleepMs(){
+  const sl=S.sessions.filter(s=>s.a==='sleep'&&s.end).sort((a,b)=>b.end-a.end);
+  return sl.length?sl[0].end-sl[0].start:null;
+}
+function render(){
+  const now=new Date();
+  $('dateLine').textContent=now.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
+  $('clockNow').textContent=fmtTime(Date.now());
+  const today=sessionsToday();
+  let logged=today.reduce((t,s)=>t+(s.end-s.start),0);
+  if(S.active&&dateStr(new Date(S.active.start))===todayStr())logged+=Date.now()-S.active.start;
+  const midnight=new Date();midnight.setHours(0,0,0,0);
+  const elapsed=Date.now()-midnight.getTime();
+  const unlogged=Math.max(0,elapsed-logged);
+  const phoneMs=(S.phone[todayStr()]||0)*60000;
+  const sl=lastSleepMs();
+  const shortfall=sl!==null?Math.max(0,7*3600000-sl):0;
+  const lost=unlogged+phoneMs+shortfall;
+  $('statLogged').textContent=fmtDur(logged);
+  $('statUnlogged').textContent=fmtDur(unlogged);
+  $('statLost').textContent=fmtDur(lost);
+  if(S.active){
+    const a=actById(S.active.id);
+    $('heroLabel').textContent='TIMING NOW';
+    $('heroTime').textContent=fmtClock(Date.now()-S.active.start);
+    $('heroSub').textContent=(a?a.name:'Activity')+' — tap it again to stop.';
+    $('stopBtn').hidden=false;
+  }else{
+    $('heroLabel').textContent='NOTHING TIMING';
+    $('heroTime').textContent='—';
+    $('heroSub').textContent='Tap an activity below to start.';
+    $('stopBtn').hidden=true;
+  }
+  // Activity buttons
+  const wrap=$('activities');wrap.innerHTML='';
+  activities().forEach(a=>{
+    const isActive=S.active&&S.active.id===a.id;
+    const todayMs=today.filter(s=>s.a===a.id).reduce((t,s)=>t+(s.end-s.start),0)
+      +(isActive?Date.now()-S.active.start:0);
+    const u=usualMs(a.id);
+    const b=document.createElement('button');
+    b.className='act'+(isActive?' active':'');
+    b.setAttribute('aria-pressed',isActive?'true':'false');
+    b.innerHTML='<span class="e">'+a.emoji+'</span><b>'+a.name+'</b><small>Today '+fmtDur(todayMs)+(u?' · Usually '+fmtDur(u):'')+'</small>';
+    b.onclick=ev=>startActivity(a.id,ev.currentTarget);
+    wrap.appendChild(b);
+  });
+  // Timeline bar (24h, sessions + unlogged gaps up to now)
+  const bar=$('dayBar');bar.innerHTML='';
+  const dayStart=midnight.getTime(),dayMs=86400000;
+  const segs=[];
+  let cursor=dayStart;
+  const ordered=[...today].sort((a,b)=>a.start-b.start);
+  if(S.active&&dateStr(new Date(S.active.start))===todayStr())ordered.push({a:S.active.id,start:S.active.start,end:Date.now()});
+  ordered.forEach(s=>{
+    if(s.start>cursor)segs.push({gap:true,start:cursor,end:Math.min(s.start,Date.now())});
+    segs.push({gap:false,a:s.a,start:s.start,end:s.end});
+    cursor=Math.max(cursor,s.end);
+  });
+  if(cursor<Date.now())segs.push({gap:true,start:cursor,end:Date.now()});
+  segs.forEach(sg=>{
+    const d=document.createElement('div');
+    d.style.width=((sg.end-sg.start)/dayMs*100)+'%';
+    if(sg.gap){d.className='gap';}else{d.style.background=colorOf(sg.a);d.title=actById(sg.a).name;}
+    bar.appendChild(d);
+  });
+  // Session list (newest first)
+  const list=$('sessList');list.innerHTML='';
+  const all=[...today].sort((a,b)=>b.start-a.start);
+  if(S.active&&dateStr(new Date(S.active.start))===todayStr())all.unshift({a:S.active.id,start:S.active.start,end:null,active:true});
+  if(!all.length)list.innerHTML='<p style="color:var(--muted)">Nothing logged yet today. Tap an activity to start the clock.</p>';
+  all.forEach((s,idx)=>{
+    const a=actById(s.a);if(!a)return;
+    const row=document.createElement('div');row.className='sess';
+    row.innerHTML='<span>'+a.emoji+' '+a.name+'</span><span class="t">'+fmtTime(s.start)+' → '+(s.end?fmtTime(s.end):'now')+' · '+(s.end?fmtDur(s.end-s.start):fmtDur(Date.now()-s.start))+'</span>';
+    if(s.end){
+      const del=document.createElement('button');del.className='del';del.setAttribute('aria-label','Delete session '+a.name);del.textContent='×';
+      del.onclick=()=>{
+        const i=S.sessions.findIndex(x=>x.a===s.a&&x.start===s.start&&x.end===s.end);
+        if(i>=0){S.sessions.splice(i,1);save();render();announce('Session deleted.');}
+      };
+      row.appendChild(del);
+    }
+    list.appendChild(row);
+  });
+  // Week row + totals
+  const days=[];
+  for(let i=6;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);days.push(d);}
+  let wh='';
+  days.forEach(d=>{
+    const k=dateStr(d);
+    const tot=S.sessions.filter(s=>dateStr(new Date(s.start))===k).reduce((t,s)=>t+(s.end-s.start),0)
+      +(S.active&&dateStr(new Date(S.active.start))===k?Date.now()-S.active.start:0);
+    wh+='<div><b>'+fmtDur(tot)+'</b>'+['Su','Mo','Tu','We','Th','Fr','Sa'][d.getDay()]+'</div>';
+  });
+  $('weekRow').innerHTML=wh;
+  const weekMs=S.sessions.filter(s=>{const d=new Date(s.start);const weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-6);weekAgo.setHours(0,0,0,0);return d>=weekAgo;}).reduce((t,s)=>t+(s.end-s.start),0);
+  let wt='<p style="color:var(--muted)">Logged this week: '+fmtDur(weekMs)+'</p>';
+  $('weekTotals').innerHTML=wt;
+  $('phoneMin').value=S.phone[todayStr()]!==undefined?S.phone[todayStr()]:'';
+}
+// Live tick + resume on return
+setInterval(()=>{if(S.active)render();$('clockNow').textContent=fmtTime(Date.now());},1000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)render();});
+$('stopBtn').onclick=stopActive;
+// Log past dialog
+function fillPastSelect(){
+  const sel=$('pastAct');sel.innerHTML='';
+  activities().forEach(a=>{const o=document.createElement('option');o.value=a.id;o.textContent=a.emoji+' '+a.name;sel.appendChild(o);});
+}
+function logPast(mins){
+  const id=$('pastAct').value,err=$('pastErr');
+  if(!mins||mins<1||mins>600){err.textContent='Pick 1 to 600 minutes.';return;}
+  const end=Date.now(),start=end-mins*60000;
+  const overlap=S.sessions.some(s=>start<s.end&&end>s.start);
+  const activeOverlap=S.active&&start<Date.now()&&end>S.active.start;
+  if(overlap||activeOverlap){err.textContent='That overlaps another session. Pick a time that fits.';return;}
+  S.sessions.push({a:id,start:start,end:end});save();render();closeOverlay($('pastOv'));
+  announce('Logged '+actById(id).name+' from '+mins+' minutes ago.');
+}
+$('logPastBtn').onclick=ev=>{fillPastSelect();$('pastErr').textContent='';$('pastMin').value='';openOverlay($('pastOv'),ev.currentTarget);};
+$('pastQuick15').onclick=()=>logPast(15);
+$('pastQuick30').onclick=()=>logPast(30);
+$('pastQuick60').onclick=()=>logPast(60);
+$('pastSave').onclick=()=>logPast(parseInt($('pastMin').value,10));
+$('pastCancel').onclick=()=>closeOverlay($('pastOv'));
+// Add activity dialog
+$('addActBtn').onclick=ev=>{$('addName').value='';$('addEmoji').value='⏱️';$('addErr').textContent='';openOverlay($('addOv'),ev.currentTarget);};
+function saveActivity(){
+  const name=$('addName').value.trim(),emoji=$('addEmoji').value.trim()||'⏱️';
+  if(!name){$('addName').setAttribute('aria-invalid','true');$('addErr').textContent='Give it a short name first.';$('addName').focus();return;}
+  S.customs.push({id:'c'+Date.now(),emoji:emoji.slice(0,4),name:name.slice(0,24)});
+  save();render();closeOverlay($('addOv'));announce('Activity added: '+name+'.');
+}
+$('addSave').onclick=saveActivity;
+$('addName').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();saveActivity();}});
+$('addCancel').onclick=()=>closeOverlay($('addOv'));
+// Phone minutes
+$('phoneSave').onclick=()=>{
+  const v=parseInt($('phoneMin').value,10);
+  if(isNaN(v)||v<0||v>1440){$('backupMsg').textContent='Phone minutes must be 0 to 1440.';return;}
+  S.phone[todayStr()]=v;save();render();$('backupMsg').textContent='Phone time saved ✓';
+};
+// Export / import
+$('exportBtn').onclick=()=>{
+  const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='day-clock-backup.json';a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  $('backupMsg').textContent='Backup downloaded ✓';
+};
+$('importBtn').onclick=()=>$('importFile').click();
+let pendingImport=null;
+$('importFile').addEventListener('change',ev=>{
+  const f=ev.target.files[0];if(!f)return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      const o=JSON.parse(rd.result);
+      if(!o||!Array.isArray(o.sessions))throw new Error('bad shape');
+      pendingImport=o;openOverlay($('impOv'),$('importBtn'));
+    }catch(e){$('backupMsg').textContent="That file isn't a Day Clock backup.";}
+  };
+  rd.readAsText(f);ev.target.value='';
+});
+$('impYes').onclick=()=>{
+  if(pendingImport){
+    S=Object.assign(blank(),pendingImport,{phone:pendingImport.phone||{},customs:Array.isArray(pendingImport.customs)?pendingImport.customs:[]});
+    save();render();$('backupMsg').textContent='Backup restored ✓';announce('Backup restored.');
+  }
+  pendingImport=null;closeOverlay($('impOv'));
+};
+$('impNo').onclick=()=>{pendingImport=null;closeOverlay($('impOv'));};
+render();
+</script>
+</body>
+</html>
