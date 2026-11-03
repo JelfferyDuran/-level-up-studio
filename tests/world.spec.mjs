@@ -74,13 +74,22 @@ test.describe('quests in the world share dashboard progress', () => {
     expect(original).not.toBeNull();
   });
 
-  test.fail('KNOWN DEFECT: a legacy save opened in the world first never gets "Time Alone with God"', async ({ page, hasTouch }) => {
-    // safeRefresh() reloads the stored save and migrateQuests() only adds read/move/tidy/plan;
-    // the 'god' migration runs once at load on the pre-refresh object and is discarded.
+  test('a legacy save opened in the world first gets "Time Alone with God" and keeps it (was defect 5)', async ({ page, hasTouch }) => {
     await seed(page, legacyV1State(TODAY));
     await openWorld(page);
     await press(portal(page, 'QUESTS'), hasTouch);
-    await expect(questRow(page, 'Time Alone with God')).toBeVisible({ timeout: 1000 });
+    await expect(questRow(page, 'Time Alone with God')).toBeVisible();
+    const ids = (await readState(page)).quests.map(q => q.id);
+    expect(ids.slice(-5)).toEqual(['god', 'read', 'move', 'tidy', 'plan']);
+  });
+
+  test('an unreadable save opened in the world is kept under a .corrupt key before the first write', async ({ page, hasTouch }) => {
+    const corrupt = '{"xp":900,"quests":[';
+    await seed(page, corrupt, { [HYBRID_BACKUP_KEY]: '{"already":"taken"}' });
+    await openWorld(page);
+    await press(portal(page, 'QUESTS'), hasTouch);
+    await press(completeBtn(questRow(page, 'Sleep 7h+')), hasTouch);
+    expect(await page.evaluate(() => Object.values(localStorage))).toContain(corrupt);
   });
 
   test('XP earned in the world is shown on the dashboard', async ({ page, hasTouch }) => {

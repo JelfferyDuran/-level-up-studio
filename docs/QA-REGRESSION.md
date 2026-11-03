@@ -4,7 +4,7 @@
 
 | Piece | What it does | Notes for testers |
 |---|---|---|
-| `index.html` | Dashboard PWA. All logic inline. State object `s` loaded once at page load from `localStorage['level-up-studio-pwa-v1']`. | Never re-reads storage after load (even on `visibilitychange`). |
+| `index.html` | Dashboard PWA. All logic inline. State `s` loaded from `localStorage['level-up-studio-pwa-v1']`; re-read (`refresh()`) before every change and on `visibilitychange`, `pageshow` (bfcache) and `storage` (other tabs). | Taps carry the state the user saw (complete vs. undo), so a stale tab never flips another tab's change. |
 | `world.html` (plain script) | Ascension World rooms, quests, Focus timer. Re-reads storage before each write (`safeRefresh`). | Works without Three.js; enters 2D mode after a 9 s timeout. |
 | `world.html` (module) | Three.js 0.170.0 from jsDelivr CDN, visuals only. | Only external request in the app. |
 | `sw.js` | Network-first cache of `/`, `/index.html`, manifest, icon. | Does not cache `world.html`. |
@@ -33,17 +33,19 @@ The harness:
 
 `iphone-viewport` is Chromium with iPhone 13 size + touch. **It is not iPhone Safari.** Real-device checks remain a manual release gate.
 
-## Known defects captured as `test.fail()`
+## Storage safety (issue #15)
 
-These tests describe the *expected* behavior and currently fail on purpose. When a fix lands, Playwright reports the test as "unexpectedly passed": flip it to a normal `test()` in the fix PR.
+The five defects found by the harness in #5 are fixed. Each `test.fail()` was flipped to a normal test whose name ends "(was defect N)". The saved format is still the plain legacy object, so older code, older offline-cached pages and old backups all read it.
 
-| # | Defect | Risk | Test |
-|---|---|---|---|
-| 1 | A stale dashboard tab (or a back-navigation restored from bfcache) overwrites XP earned in Ascension World. | **High** — real XP loss, likely on iPhone Safari. | `dashboard.spec.mjs` › stale dashboard tab |
-| 2 | Unreadable (truncated/corrupt) saved JSON is replaced with a fresh save on the next action; original bytes are gone. | **High** — silent total reset. | `dashboard.spec.mjs` › unreadable saved data |
-| 3 | A save missing `done` (or `quests`) resets all progress on the next action. | **High** — silent total reset. | `dashboard.spec.mjs` › missing "done" |
-| 4 | Completing a quest after midnight with the dashboard still open credits the previous day and leaves today empty. | Medium — wrong day, affects streak/Gold Stars. | `dashboard.spec.mjs` › after midnight |
-| 5 | A legacy save first opened in World never gets "Time Alone with God" there. | Low — dashboard adds it on its next load. | `world.spec.mjs` › Time Alone with God |
+| # | Was | Now |
+|---|---|---|
+| 1 | Stale dashboard tab / bfcache overwrote XP earned in World. | Dashboard re-reads storage before every change and on `pageshow`/`storage`/`visibilitychange`. |
+| 2 | Unreadable save silently replaced. | Original bytes copied once to `level-up-studio-pwa-v1.corrupt.<ms>` (both pages); dashboard shows a note in Studio → Your Data. |
+| 3 | Save missing `done`/`quests` reset all progress. | Only the broken list is rebuilt; XP, stars, completed, best, history and other fields are kept. Original copied to `.corrupt.<ms>`. |
+| 4 | Quest after midnight credited to yesterday. | Day rollover runs before the change is applied. |
+| 5 | World omitted "Time Alone with God" for legacy saves. | World's refresh migration includes `god`; restore from backup re-adds it too. |
+
+Not handled yet: two tabs changing the *same* quest within the same instant (last write wins), and `.corrupt.*` copies are never pruned (one per distinct damaged save).
 
 Also observed, not a test failure: opening any World room persists a normalized save even if the user did nothing.
 

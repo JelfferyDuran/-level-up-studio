@@ -16,13 +16,19 @@
   'use strict';
   var KEY = 'level-up-studio-pwa-v1';
   var data = { xp: 0, stars: 0, done: [], completed: 0, best: 0, minutes: 25, stepDone: {}, history: {}, quests: [['sleep', '😴', 'Sleep 7h+', 50], ['sprint', '🎯', 'Focus Sprint', 50], ['mit', '✅', 'MIT done', 40], ['break', '🌿', 'Real break', 30], ['park', '📵', 'Phone parked', 30], ['god', '🙏', 'Time Alone with God', 50], ['read', '📚', 'Read 20 minutes', 30], ['move', '🏃', 'Move 20 minutes', 40], ['tidy', '🧹', 'Tidy 10 minutes', 20], ['plan', '📝', 'Plan tomorrow', 20]].map(function (q) { return { id: q[0], emoji: q[1], name: q[2], xp: q[3] }; }) };
-  try { var v = JSON.parse(localStorage.getItem(KEY) || 'null'); if (v && typeof v === 'object') data = Object.assign(data, v); } catch (e) {}
-  if (Array.isArray(data.quests) && !data.quests.some(function (q) { return q.id === 'god'; })) data.quests.push({ id: 'god', emoji: '🙏', name: 'Time Alone with God', xp: 50 });
+  // A save this page cannot read is copied to KEY + '.corrupt.<time>' before anything can overwrite it.
+  var lastBad = null;
+  function quarantine(raw) {
+    if (raw === lastBad) return;
+    lastBad = raw;
+    try { localStorage.setItem(KEY + '.corrupt.' + Date.now(), raw); } catch (e) {}
+  }
+  try { var v = JSON.parse(localStorage.getItem(KEY) || 'null'); if (v && typeof v === 'object') data = Object.assign(data, v); } catch (e) { quarantine(localStorage.getItem(KEY)); }
   // Migration: existing players gain the new quests without losing progress.
   // Runs at load AND on every refresh, because refresh reloads stored state.
   function migrateQuests() {
     if (!Array.isArray(data.quests)) data.quests = [];
-    var extra = { read: ['📚', 'Read 20 minutes', 30], move: ['🏃', 'Move 20 minutes', 40], tidy: ['🧹', 'Tidy 10 minutes', 20], plan: ['📝', 'Plan tomorrow', 20] };
+    var extra = { god: ['🙏', 'Time Alone with God', 50], read: ['📚', 'Read 20 minutes', 30], move: ['🏃', 'Move 20 minutes', 40], tidy: ['🧹', 'Tidy 10 minutes', 20], plan: ['📝', 'Plan tomorrow', 20] };
     var changed = false;
     Object.keys(extra).forEach(function (id) {
       if (!data.quests.some(function (q) { return q.id === id; })) { data.quests.push({ id: id, emoji: extra[id][0], name: extra[id][1], xp: extra[id][2] }); changed = true; }
@@ -114,8 +120,8 @@
   function safeRefresh() {
     try {
       var raw = localStorage.getItem(KEY);
-      if (raw) { var latest = JSON.parse(raw); if (latest && Array.isArray(latest.quests) && Array.isArray(latest.done)) data = latest; }
-    } catch (e) {}
+      if (raw) { var latest = JSON.parse(raw); if (latest && Array.isArray(latest.quests) && Array.isArray(latest.done)) data = latest; else quarantine(raw); }
+    } catch (e) { quarantine(localStorage.getItem(KEY)); }
     // Stored states predate subtasks: re-apply defaults the stored object lacks.
     if (!Array.isArray(data.quests)) data.quests = [];
     if (!data.stepDone || typeof data.stepDone !== 'object') data.stepDone = {};
