@@ -149,7 +149,7 @@ test.describe('day rollover', () => {
     await expect(page.locator('#streak')).toHaveText('3 🔥');
   });
 
-  test.fail('KNOWN DEFECT: a quest completed after midnight without a reload is credited to the previous day', async ({ page }) => {
+  test('a quest completed after midnight with the tab still open counts for the new day (was defect 4)', async ({ page }) => {
     // Page opened at 23:58, user taps a quest at 00:01 with the tab still open.
     await page.clock.setFixedTime(new Date('2026-10-26T23:58:00Z'));
     await page.goto('/');
@@ -159,6 +159,7 @@ test.describe('day rollover', () => {
     // Expected: the completion counts for 2026-10-27.
     expect(s.date).toBe('2026-10-27');
     expect(s.done).toEqual(['sleep']);
+    expect(s.history['2026-10-26']).toBeUndefined();
   });
 });
 
@@ -218,7 +219,7 @@ test.describe('backup and restore', () => {
     await expect.poll(() => dialogs).toContain('Backup restored');
     const s = await readState(page);
     expect(s.xp).toBe(1234);
-    expect(s.quests.map(q => q.id)).toEqual(expect.arrayContaining(['read', 'move', 'tidy', 'plan', 'custom-1700000000000']));
+    expect(s.quests.map(q => q.id)).toEqual(expect.arrayContaining(['god', 'read', 'move', 'tidy', 'plan', 'custom-1700000000000']));
   });
 
   test('an invalid backup is rejected and current progress is untouched', async ({ page, dialogs }) => {
@@ -232,7 +233,7 @@ test.describe('backup and restore', () => {
 });
 
 test.describe('storage safety', () => {
-  test.fail('KNOWN DEFECT: unreadable saved data is silently replaced on the next action', async ({ page }) => {
+  test('unreadable saved data is kept under a .corrupt key before anything is rebuilt (was defect 2)', async ({ page }) => {
     const corrupt = '{"xp":900,"quests":[{"id":"sleep"'; // e.g. truncated write
     await seed(page, corrupt);
     await page.goto('/');
@@ -240,17 +241,49 @@ test.describe('storage safety', () => {
     // Expected: the original bytes are kept somewhere recoverable.
     const all = await page.evaluate(() => Object.values(localStorage));
     expect(all).toContain(corrupt);
+    const keys = await page.evaluate(() => Object.keys(localStorage));
+    expect(keys.filter(k => k.startsWith(KEY + '.corrupt.'))).toHaveLength(1);
+    await page.locator('nav').getByRole('button', { name: /Studio/ }).click();
+    await expect(page.locator('#status')).toContainText('Recovered a damaged save');
   });
 
-  test.fail('KNOWN DEFECT: a save missing "done" resets ALL progress (XP, history) on next action', async ({ page }) => {
+  test('a damaged save is copied only once, however often the page re-reads it', async ({ page }) => {
+    await seed(page, '{"xp":900');
+    await page.goto('/');
+    for (let i = 0; i < 3; i++) await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    const keys = await page.evaluate(() => Object.keys(localStorage));
+    expect(keys.filter(k => k.includes('.corrupt.'))).toHaveLength(1);
+  });
+
+  test('a save missing "done" keeps XP, stars and history (was defect 3)', async ({ page }) => {
     const { done, ...noDone } = legacyV1State(TODAY);
     await seed(page, noDone);
     await page.goto('/');
     await home(page).getByRole('button', { name: 'Complete Sleep 7h+' }).click();
-    expect((await readState(page)).xp).toBeGreaterThanOrEqual(1234);
+    const s = await readState(page);
+    expect(s).toMatchObject({ xp: 1234 + 50, stars: 38, completed: 38, history: noDone.history, done: ['sleep'] });
+    expect(s.quests.find(q => q.id === 'custom-1700000000000')).toBeTruthy();
+    expect(await page.evaluate(() => Object.keys(localStorage).some(k => k.includes('.corrupt.')))).toBe(true);
   });
 
-  test.fail('KNOWN DEFECT: a stale dashboard tab overwrites XP earned in Ascension World', async ({ page, context }) => {
+  test('a save missing "quests" keeps XP and rebuilds the default quests', async ({ page }) => {
+    const { quests, ...noQuests } = legacyV1State(TODAY);
+    await seed(page, noQuests);
+    await page.goto('/');
+    await expect(page.locator('#xp')).toHaveText('1234');
+    await expect(home(page).locator('.quest')).toHaveCount(DEFAULT_IDS.length);
+  });
+
+  test('the saved format is still the plain legacy object (old code and backups can read it)', async ({ page }) => {
+    await seed(page, legacyV1State(TODAY));
+    await page.goto('/');
+    await home(page).getByRole('button', { name: 'Complete Real break' }).click();
+    const s = await readState(page);
+    expect(Array.isArray(s.quests) && Array.isArray(s.done) && Number.isFinite(s.xp)).toBe(true);
+    expect(Object.keys(s).sort()).toEqual(['best', 'completed', 'date', 'done', 'history', 'message', 'minutes', 'name', 'quests', 'stars', 'stepDone', 'xp']);
+  });
+
+  test('a stale dashboard tab does not overwrite XP earned in Ascension World (was defect 1)', async ({ page, context }) => {
     // Dashboard open in one tab; user earns XP in world.html in another tab
     // (or returns via a bfcache'd page on iPhone Safari), then acts on the dashboard.
     await page.goto('/');
@@ -262,10 +295,68 @@ test.describe('storage safety', () => {
     await expect.poll(async () => (await readState(world)).xp).toBe(50);
     await world.close();
 
-    await page.evaluate(() => { document.dispatchEvent(new Event('visibilitychange')); });
+    // No visibilitychange/pageshow here: the tap itself must re-read storage.
     await home(page).getByRole('button', { name: 'Complete MIT done' }).click();
     // Expected: 50 (world) + 40 (dashboard).
     expect((await readState(page)).xp).toBe(90);
+  });
+});
+
+test.describe('multiple tabs', () => {
+  // Writing from inside `page` simulates another tab whose storage event never arrived
+  // (frozen or bfcache'd pages on iPhone Safari): a document gets no storage event for its own writes.
+  const writeBehindTheTabsBack = (page, patch) => page.evaluate(([k, p]) => {
+    const s = JSON.parse(localStorage.getItem(k) || 'null');
+    localStorage.setItem(k, JSON.stringify({ ...(s || {}), date: '2026-10-26', history: {}, ...p }));
+  }, [KEY, patch]);
+
+  test('a tap in a stale tab never undoes what another tab completed', async ({ page }) => {
+    await page.goto('/');
+    await writeBehindTheTabsBack(page, { xp: 1284, stars: 38, completed: 38, done: ['sleep'], quests: [{ id: 'sleep', emoji: '😴', name: 'Sleep 7h+', xp: 50 }] });
+    // The tab still shows "Complete Sleep 7h+"; tapping it must not flip the quest back off.
+    await home(page).getByRole('button', { name: 'Complete Sleep 7h+' }).click();
+    expect(await readState(page)).toMatchObject({ xp: 1284, stars: 38, completed: 38, done: ['sleep'] });
+    await expect(home(page).getByRole('button', { name: 'Undo Sleep 7h+' })).toBeVisible();
+  });
+
+  test('a stale subtask tap never unticks a step another tab ticked', async ({ page }) => {
+    await page.goto('/');
+    await writeBehindTheTabsBack(page, { xp: 300, done: [], stepDone: { read: [0] }, quests: [{ id: 'read', emoji: '📚', name: 'Read 20 minutes', xp: 30 }] });
+    await home(page).getByRole('button', { name: 'Complete step: Pick your book' }).click();
+    const s = await readState(page);
+    expect(s.stepDone.read).toEqual([0]);
+    expect(s.xp).toBe(300);
+  });
+
+  test('other tabs\' changes appear without a reload (storage event)', async ({ page, context }) => {
+    await page.goto('/');
+    const other = await context.newPage();
+    await other.goto('/');
+    await home(other).getByRole('button', { name: 'Complete MIT done' }).click();
+    await expect(page.locator('#xp')).toHaveText('40');
+  });
+
+  test('a page restored from the back/forward cache re-reads storage', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(k => {
+      const s = JSON.parse(localStorage.getItem(k) || 'null') || {};
+      localStorage.setItem(k, JSON.stringify({ ...s, xp: 777, stars: 3, completed: 3, quests: [{ id: 'sleep', emoji: '😴', name: 'Sleep 7h+', xp: 50 }], done: [], date: '2026-10-26', history: {} }));
+      window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+    }, KEY);
+    await expect(page.locator('#xp')).toHaveText('777');
+  });
+
+  test('a focus session finishing in a stale tab does not undo a Focus Sprint already earned elsewhere', async ({ page, context }) => {
+    await page.goto('/?destination=focus');
+    await page.getByRole('button', { name: '▶ Start' }).click();
+    const other = await context.newPage();
+    await other.goto('/');
+    await other.evaluate(k => {
+      const s = JSON.parse(localStorage.getItem(k) || 'null');
+      localStorage.setItem(k, JSON.stringify({ ...(s || {}), xp: 500, stars: 9, completed: 9, done: ['sprint'], date: '2026-10-26', history: {}, quests: [{ id: 'sprint', emoji: '🎯', name: 'Focus Sprint', xp: 50 }] }));
+    }, KEY);
+    await page.clock.fastForward(25 * 60 * 1000 + 2000);
+    expect(await readState(page)).toMatchObject({ xp: 500, stars: 9, done: ['sprint'] });
   });
 });
 
